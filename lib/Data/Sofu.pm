@@ -17,7 +17,7 @@
 package Data::Sofu;
 use strict;
 use vars qw($VERSION);
-$VERSION="0.22";
+$VERSION="0.24";
 sub new {
 	my $self={};
 	shift;
@@ -744,8 +744,11 @@ Data::Sofu - Perl extension for Sofu data
 	require Data::Sofu;
 	my $sofu=new Sofu;
 	%hash=$sofu->read("file.sofu");
-	$sofu->write("file.sofu",\%hash);
+	$comments=$sofu->comments;
 	$sofu->write("file.sofu",$hashref);
+	open FH,">file.sofu";
+	$sofu->write(\*FH,$hashref,$comments);
+	close FH;
 	$texta=$sofu->pack($arrayref);
 	$texth=$sofu->pack($hashref);
 	$arrayref=$sofu->unpack($texta);
@@ -758,6 +761,8 @@ This Module provides the ability to read and write sofu files of the versions 0.
 It can also read not-so-wellformed sofu files and correct their errors. 
 
 Additionally it provides the ability to pack HASHes and ARRAYs to sofu strings and unpack those.
+
+The comments in a sofu file can be preserved if 
 
 =head1 SYNTAX
 
@@ -778,7 +783,11 @@ Sets the indent to INDENT. Default indent is "\t".
 
 Enables/Disables sofu syntax warnings.
 
-=head2 write(FILE,DATA)
+=head2 comments 
+
+Gets/sets the comments of the last file read
+
+=head2 write(FILE,DATA,[COMMENTS])
 
 Writes a sofu file with the name FILE.
 FILE can be:
@@ -795,6 +804,8 @@ The top element of sofu files must be a hash, so any other datatype is converted
 	$sofu->write("Test.sofu",\@a);
 	%data=$sofu->read("Test.sofu");
 	@a=@{$data->{Value}}; # (1,2,3)
+
+COMMENTS is s reference to hash with comments like the one retuned by comments()
 
 =head2 read(FILE)
 
@@ -817,6 +828,19 @@ This function unpacks SOFU STRING and returns a scalar, which can be either a st
 Hashes with keys other than strings without whitespaces are not supported due to the restrictions of the sofu file format.
 
 Crossreference will trigger a warning.
+
+Comments written after an object will be rewritten at the top of an object:
+
+	foo = { # Comment1
+		Bar = "Baz"
+	} # Comment2
+
+will get to:
+
+	foo = { # Comment1
+	# Comment 2
+		Bar = "Baz"
+	} 
 
 =head1 SEE ALSO
 
