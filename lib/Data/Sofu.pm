@@ -17,7 +17,7 @@
 package Data::Sofu;
 use strict;
 use vars qw($VERSION);
-$VERSION="0.24";
+$VERSION="0.25";
 sub new {
 	my $self={};
 	shift;
@@ -325,8 +325,9 @@ sub get() {
 	}
 	return shift if @_ and $_[0] and $_[0]!="";
 	$self->{LENGTH}=length $$self{READLINE} unless $self->{LENGTH};
-	return undef if $self->{COUNT}>=$self->{LENGTH};
+	$self->storeComment and return undef if $self->{COUNT}>=$self->{LENGTH};
 	my $c=substr($$self{READLINE},$self->{COUNT}++,1);
+	print "GET '$c'\n" if $$self{Debug};
 	#print "DEBUG: $self->{COUNT}=$c\n";
 	if ($c eq "\"") {
 		$self->{String}=!$self->{String} unless $self->{Escape};
@@ -341,7 +342,7 @@ sub get() {
 		my $i=index($$self{READLINE},"\n",$self->{COUNT});
 		push @{$self->{COMMENT}},substr($$self{READLINE},$self->{COUNT},$i-$self->{COUNT});
 		#print "DEBUG JUMPING FROM $self->{COUNT} to INDEX=$i";
-		$self->{COUNT}=$i;
+		$self->{COUNT}=$i+1;
 		$c="\n";
 	}	
 	++$$self{Counter};
@@ -349,7 +350,6 @@ sub get() {
 		$$self{Counter}=0;
 		$$self{Line}++;
 	}
-	
 	print "END" if not defined $c and $$self{Debug} ;
 	return $c;
 }
