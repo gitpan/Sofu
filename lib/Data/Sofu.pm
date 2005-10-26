@@ -15,9 +15,44 @@
 #http://www.opensource.org/licenses/mit-license.php .
 ###############################################################################
 package Data::Sofu;
+require Exporter;
 use strict;
-use vars qw($VERSION);
-$VERSION="0.25";
+use Carp;
+$Carp::Verbose=1;
+use vars qw($VERSION @EXPORT @ISA @EXPORT_OK %EXPORT_TAGS);
+@ISA = qw/Exporter/;
+
+@EXPORT= qw/readSofu writeSofu getSofucomments/;
+@EXPORT_OK= qw/readSofu writeSofu getSofucomments packSofu unpackSofu/;
+%EXPORT_TAGS=("all"=>[@EXPORT_OK]);
+
+$VERSION="0.26";
+my $sofu;
+
+sub readSofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->read(@_);
+}
+
+sub writeSofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->write(@_);
+}
+
+sub getSofucomments {
+	warn "Can't get comments: No File read" unless $sofu;
+	return $sofu->comments;
+}
+
+sub packSofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->pack(@_);
+}
+sub unpackSofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->unpack(@_);
+}
+
 sub new {
 	my $self={};
 	shift;
@@ -152,6 +187,7 @@ sub writeMap {
 	push @{$$self{Ref}},$ref;
 	$res.="{".$self->commentary."\n" if $deep or not $$self{Libsofucompat};
 	foreach (sort keys %{$ref}) {
+		$self->warn("Impossible Name for a Map-Entry: \"$_\"") if not $_ or $_=~m/[\=\"\}\{\(\)\s\n]/;
 		$self->{TREE}=$tree."->$_";
 		unless (ref $$ref{$_}) {
 			$res.=$$self{Indent} x $deep."$_ = \"".$self->escape($$ref{$_})."\"".$self->commentary."\n";
@@ -277,6 +313,7 @@ sub unpack($) {
 	$self->{Commentary}={};
 	my $c;
 	1 while ($c=$self->get() and $c =~ m/\s/);
+	return unless $c;
 	if ($c eq "{") {
 		my %result=$self->parsMap;
 		1 while ($c=$self->get() and $c =~ m/\s/);
@@ -364,12 +401,12 @@ sub storeComment {
 sub warn {
 	my $self=shift;
 	local $_;
-	warn "Sofu warning: \"".shift(@_)."\" File: $$self{CurFile}, Line : $$self{Line}, Char : $$self{Counter},  Caller:".join(" ",caller);
+	confess "Sofu warning: \"".shift(@_)."\" File: $$self{CurFile}, Line : $$self{Line}, Char : $$self{Counter},  Caller:".join(" ",caller);
 	1;
 }
 sub escape {
 	shift;
-	my $text=shift;
+	my $text=shift || "";
 	$text=~s/\\/\\\\/g;
 	$text=~s/\n/\\n/g;
 	$text=~s/\r/\\r/g;
@@ -379,11 +416,14 @@ sub escape {
 sub deescape {
 	my $self=shift;
 	local $_;
-	my $text;
-	my @text=split//,shift;
+	my $text="";
+	my $ttext=shift;
 	my $char;
 	my $escape=0;
-	while (defined(my $char=shift @text)) {
+	my $count=0;
+	my $len=length $ttext;
+	while ($count <= $len) {
+		my $char=substr($ttext,$count++,1);
 		if ($char eq "\\") {
 			$text.="\\" if $escape;
 			$escape=!$escape;
@@ -739,16 +779,35 @@ sub parsList {
 
 Data::Sofu - Perl extension for Sofu data
 
-=head1 SYNOPSIS
+=head1 Synopsis 
+
+	use Data::Sofu;
+	%hash=readSofu("file.sofu");
+	...
+	writeSofu("file.sofu",\%hash);
+	
+Or a litte more complex:
+	use Data::Sofu qw/packSofu unpackSofu/;
+	%hash=readSofu("file.sofu");
+	$comments=getSofucomments;
+	open fh,">file.sofu";
+	writeSofu(\*fh,\$hash,$comments);
+	close fh;
+	$texta=packSofu($arrayref);
+	$texth=packSofu($hashref);
+	$arrayref=unpackSofu($texta);
+	$arrayhash=unpackSofu($texth);
+
+=head1 Synopsis - oo-style
 
 	require Data::Sofu;
 	my $sofu=new Sofu;
 	%hash=$sofu->read("file.sofu");
 	$comments=$sofu->comments;
 	$sofu->write("file.sofu",$hashref);
-	open FH,">file.sofu";
-	$sofu->write(\*FH,$hashref,$comments);
-	close FH;
+	open fh,">file.sofu";
+	$sofu->write(\*fh,$hashref,$comments);
+	close fh;
 	$texta=$sofu->pack($arrayref);
 	$texth=$sofu->pack($hashref);
 	$arrayref=$sofu->unpack($texta);
@@ -762,14 +821,58 @@ It can also read not-so-wellformed sofu files and correct their errors.
 
 Additionally it provides the ability to pack HASHes and ARRAYs to sofu strings and unpack those.
 
-The comments in a sofu file can be preserved if 
+The comments in a sofu file can be preserved if they're saved with $sofu->comment or getSofucomments;
 
 =head1 SYNTAX
 
-This class does not export any functions, so you need to call them using object notation.
+This module can either be called using object-orientated notation or using the funtional interface.
+Some features are only avaiable when using OO.
 
-=head1 FUNCTIONS AND METHODS
+=head1 FUNCTIONS
 
+=head2 getSofucomments 
+
+Gets the comments of the last file read
+
+=head2 writeSofu(FILE,DATA,[COMMENTS])
+
+Writes a sofu file with the name FILE.
+FILE can be:
+A reference to a filehandle or
+a filename
+
+An existing file of this name will be overwritten.
+
+DATA can be a scalar, a hashref or an arrayref.
+
+The top element of sofu files must be a hash, so any other datatype is converted to {Value=>DATA}.
+	
+	@a=(1,2,3);
+	$sofu->write("Test.sofu",\@a);
+	%data=$sofu->read("Test.sofu");
+	@a=@{$data->{Value}}; # (1,2,3)
+
+COMMENTS is s reference to hash with comments like the one retuned by comments()
+
+=head2 readSofu(FILE)
+
+Reads the sofu file FILE and returns a hash with the data.
+FILE can be:
+A reference to a filehandle or
+a filename
+
+These methods are not exported by default:
+
+=head2 packSofu(DATA)
+
+Packs DATA to a sofu string.
+DATA can be a scalar, a hashref or an arrayref.
+
+=head2 unpackSofu(SOFU STRING)
+
+This function unpacks SOFU STRING and returns a scalar, which can be either a string or a reference to a hash or a reference to an array.
+
+=head1 METHODS (OO)
 
 =head2 new
 
