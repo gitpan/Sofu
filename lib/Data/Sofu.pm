@@ -26,7 +26,7 @@ use vars qw($VERSION @EXPORT @ISA @EXPORT_OK %EXPORT_TAGS);
 @EXPORT_OK= qw/readSofu writeSofu getSofucomments packSofu unpackSofu/;
 %EXPORT_TAGS=("all"=>[@EXPORT_OK]);
 
-$VERSION="0.26";
+$VERSION="0.27";
 my $sofu;
 
 sub readSofu {
@@ -60,7 +60,7 @@ sub new {
 	$$self{Counter}=0;
 	$$self{WARN}=1;
 	$$self{Debug}=0;
-	$$self{Ref}=[];
+	$$self{Ref}={};
 	$$self{Indent}="";
 	$self->{String}=0;
 	$self->{Escape}=0;
@@ -147,16 +147,18 @@ sub writeList {
 	my $ref=shift;
 	my $res="";
 	my $tree=$self->{TREE};
-	foreach (@{$$self{Ref}}) {
-		$res.="\"\"" and $self->warn("Cross-reference ignored") and return 0 if $_ == $ref;
+	if ($$self{Ref}->{$ref}) {
+		$res.="@".$$self{Ref}->{$ref}."\n";
+		#$self->warn("Cross-reference ignored");
+		return $res;
 	}
-	push @{$$self{Ref}},$ref;
+	$$self{Ref}->{$ref}=$tree;
 	$res.="(".$self->commentary."\n";
 	my $i=0;
 	foreach my $r (@{$ref}) {
 		$self->{TREE}=$tree."->$i";
 		if (not ref($r)) {
-			$res.=$$self{Indent} x $deep."\"".$self->escape($r)."\"".$self->commentary."\n";
+			$res.=$$self{Indent} x $deep.$self->escape($r).$self->commentary."\n";
 		}
 		elsif (ref $r eq "HASH") {
 			$res.=$$self{Indent} x $deep;
@@ -181,16 +183,18 @@ sub writeMap {
 	my $ref=shift;
 	my $tree=$self->{TREE};
 	my $res="";
-	foreach (@{$$self{Ref}}) {
-		$res.="\"\"" and $self->warn("Cross-reference ignored") and return $res if $_ == $ref;
+	if ($$self{Ref}->{$ref}) {
+		$res.="@".$$self{Ref}->{$ref}."\n";
+		#$self->warn("Cross-reference ignored");
+		return $res;
 	}
-	push @{$$self{Ref}},$ref;
+	$$self{Ref}->{$ref}=$tree;
 	$res.="{".$self->commentary."\n" if $deep or not $$self{Libsofucompat};
 	foreach (sort keys %{$ref}) {
 		$self->warn("Impossible Name for a Map-Entry: \"$_\"") if not $_ or $_=~m/[\=\"\}\{\(\)\s\n]/;
 		$self->{TREE}=$tree."->$_";
 		unless (ref $$ref{$_}) {
-			$res.=$$self{Indent} x $deep."$_ = \"".$self->escape($$ref{$_})."\"".$self->commentary."\n";
+			$res.=$$self{Indent} x $deep."$_ = ".$self->escape($$ref{$_}).$self->commentary."\n";
 		}
 		elsif (ref $$ref{$_} eq "HASH") {
 			$res.=$$self{Indent} x $deep."$_ = ";
@@ -216,7 +220,7 @@ sub write {
 	$$self{TREE}="";
 	unless (ref $file) {
 		$$self{CurFile}=$file;
-		open $fh,">",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
+		open $fh,">",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!",`pwd;ls`;
 	}
 	elsif (ref $file eq "GLOB") {
 		$$self{CurFile}="FileHandle";
@@ -275,8 +279,15 @@ sub read {
 	my $text=do {local $/,<$fh>};
 	close $fh if ref $file;
 	$$self{CurFile}="";
-	return %{$self->unpack($text)};
+	my $u=$self->unpack($text);
+	#die Data::Dumper->Dump([$$self{Ref}]);
+	return () unless ref $u;	
+	return %{$u} if ref $u eq "HASH";
+	return (Value=>$u);
+#	$self->warn("Unpack error: $u") unless ref $u;
+#	return %{$u};
 }
+
 sub pack {
 	my $self=shift;
 	my $ref=shift;
@@ -284,7 +295,7 @@ sub pack {
 	$self->{Commentary}={};
 	$self->comment(@_);
 	$$self{TREE}="";
-	@{$$self{Ref}}=();
+	%{$$self{Ref}}=();
 	$$self{Indent}=$$self{SetIndent} if $$self{SetIndent};
 	$$self{Counter}=0;
 	unless (ref $ref) {
@@ -310,12 +321,15 @@ sub unpack($) {
 	$$self{Line}=1;
 	$$self{READLINE}=shift()."\n";
 	$$self{LENGTH}=length $$self{READLINE};
+	%{$$self{Ref}}=();
 	$self->{Commentary}={};
 	my $c;
 	1 while ($c=$self->get() and $c =~ m/\s/);
-	return unless $c;
+	return unless defined $c;
 	if ($c eq "{") {
-		my %result=$self->parsMap;
+		my %result;
+		$$self{Ref}->{""}=\%result;
+		%result=$self->parsMap;
 		1 while ($c=$self->get() and $c =~ m/\s/);
 		if ($c=$self->get()) {
 			$self->warn("Trailing Characters: $c");
@@ -323,7 +337,9 @@ sub unpack($) {
 		return {%result};
 	}
 	elsif ($c eq "(") {
-		my @result=$self->parsList;
+		my @result;
+		$$self{Ref}->{""}=\@result;
+		@result=$self->parsList;
 		1 while ($c=$self->get() and $c =~ m/\s/);
 		if ($c=$self->get()) {
 			$self->warn("Trailing Characters: $c");
@@ -332,7 +348,9 @@ sub unpack($) {
 		
 	}
 	elsif ($c eq "\"") {
-		my @result=$self->parsValue;
+		my @result;
+		$$self{Ref}->{""}=\@result;
+		@result=$self->parsValue;
 		1 while ($c=$self->get() and $c =~ m/\s/);
 		if ($c=$self->get()) {
 			$self->warn("Trailing Characters: $c");
@@ -340,8 +358,10 @@ sub unpack($) {
 		return [@result];
 	}
 	elsif ($c!~m/[\=\"\}\{\(\)\s\n]/) {
-		$$self{Ret}=$c;
-		my %result=$self->parsMap;
+		$$self{Ret}=$c;		
+		my %result;
+		$$self{Ref}->{""}=\%result;
+		%result=$self->parsMap;
 		1 while ($c=$self->get() and $c =~ m/\s/);
 		if ($c=$self->get()) {
 			$self->warn("Trailing Characters: $c");
@@ -404,52 +424,74 @@ sub warn {
 	confess "Sofu warning: \"".shift(@_)."\" File: $$self{CurFile}, Line : $$self{Line}, Char : $$self{Counter},  Caller:".join(" ",caller);
 	1;
 }
+sub keyescape { #Other escaping (can be parsed faster and is Sofu 0.1 compatible)
+	my $self=shift;
+	my $key=shift;
+	$key=~s/([[:^print:]\s\<\>\=\"\}\{\(\)])/sprintf("\<\%x\>",ord($1))/eg;
+	return $key;
+}
+
+sub keyunescape { #Other escaping (can be parsed faster)
+	my $self=shift;
+	my $key=shift;
+	$key=~s/\<([0-9abcdef]*)\>/chr(hex($1))/egi;
+	return $key;
+}
 sub escape {
 	shift;
-	my $text=shift || "";
+	my $text=shift;
+	return "UNDEF" unless defined $text; #TODO: UNDEF = Undefined
 	$text=~s/\\/\\\\/g;
 	$text=~s/\n/\\n/g;
 	$text=~s/\r/\\r/g;
 	$text=~s/\"/\\\"/g;
-	return $text;
+	return "\"$text\"";
 }
 sub deescape {
 	my $self=shift;
 	local $_;
 	my $text="";
 	my $ttext=shift;
-	my $char;
-	my $escape=0;
-	my $count=0;
-	my $len=length $ttext;
-	while ($count <= $len) {
-		my $char=substr($ttext,$count++,1);
-		if ($char eq "\\") {
-			$text.="\\" if $escape;
-			$escape=!$escape;
-		}
-		else {
-			if ($escape) {
-				if (lc($char) eq "n") {
-					$text.="\n";
-				}
-				elsif (lc($char) eq "r") {
-					$text.="\r";
-				}
-				elsif (lc($char) eq "\"") {
-					$text.="\"";
-				}
-				else {
-					$self->warn("Deescape: Can't deescape: \\$char");
-				}
-				$escape=0;
+	my $noescape=shift;
+	if ($noescape) {
+		return $$self{Ref}->{$1} || warn "Can't find reference to $1.. References must first defined then called. You can't reference a string or number" if $ttext =~ m/^\@(.+)$/;
+		return undef if $ttext eq "UNDEF";
+		return $ttext;
+	}
+	else {
+		my $char;
+		my $escape=0;
+		my $count=0;
+		my $len=length $ttext;
+		while ($count <= $len) {
+			my $char=substr($ttext,$count++,1);
+			if ($char eq "\\") {
+				$text.="\\" if $escape;
+				$escape=!$escape;
 			}
 			else {
-				$text.=$char;
+				if ($escape) {
+					if (lc($char) eq "n") {
+						$text.="\n";
+					}
+					elsif (lc($char) eq "r") {
+						$text.="\r";
+					}
+					elsif (lc($char) eq "\"") {
+						$text.="\"";
+					}
+					else {
+						$self->warn("Deescape: Can't deescape: \\$char");
+					}
+					$escape=0;
+				}
+				else {
+					$text.=$char;
+				}
 			}
 		}
+		return $text;
 	}
-	return $text;
 }
 sub parsMap {
 	my $self=shift;
@@ -485,8 +527,10 @@ sub parsMap {
 			$self->warn("MapEntry unnamed!") if ($comp eq "");
 			$self->storeComment;
 			$self->{TREE}=$tree."->".$comp;
-			my %res=$self->parsMap();
-			$result{$comp} = {%res};
+			my $res={};
+			$$self{Ref}->{$self->{TREE}}=$res;
+			%$res=$self->parsMap();
+			$result{$comp} = $res;
 			$comp="";
 			$eq=0;
 		}
@@ -497,7 +541,8 @@ sub parsMap {
 		}
 		elsif ($char eq "\"") {
 			if (not $eq) {
-				return $self->parsValue();
+				$self->warn("Unclear Structure detected: was the last entry a value or a key (maybe you forgot either \"=\" before this or the \'\"\' around the value"); 
+				$eq=1;
 			}
 			$self->storeComment;
 			$self->{TREE}=$tree."->".$comp;
@@ -517,8 +562,10 @@ sub parsMap {
 			$self->warn("MapEntry unnamed!") if ($comp eq "");
 			$self->storeComment;
 			$self->{TREE}=$tree."->".$comp;
-			my @res=$self->parsList();
-			$result{$comp} = [@res];
+			my $res=[];
+			$$self{Ref}->{$self->{TREE}}=$res;
+			@{$res}=$self->parsList();
+			$result{$comp} = $res;
 			$comp="";
 			$eq=0;
 		}
@@ -538,6 +585,8 @@ sub parsValue {
 	my $char;
 	my $i=0;
 	my $tree=$self->{TREE};
+	my $starttree=$self->{TREE};
+	$$self{Ref}->{$tree}=\@result;
 	$self->storeComment;
 	$self->{TREE}=$tree."->0";
 	while (defined($char=$self->get())) {
@@ -549,7 +598,7 @@ sub parsValue {
 					$cur.=$char;
 				}
 				else {
-					push @result,$self->deescape($cur);
+					push @result,$self->deescape($cur,0);
 					$self->storeComment;
 					$self->{TREE}=$tree."->".$i++;
 					$cur="";
@@ -574,15 +623,18 @@ sub parsValue {
 		else {
 			if ($char!~m/[\=\"\}\{\(\)\s\n]/s) {
 				$$self{Ret}=$char;
-				if (@result>2) {
+				if (@result>1) {
 					$self->{TREE}=$tree."->$#result";
 					$self->storeComment;
-					return [@result]
+					my $res=[@result];
+					$$self{Ref}->{$tree}=$res;
+					return $res;
 				}
 				elsif (@result) {
 					$self->{TREE}=$tree;
 					$self->storeComment;
-					return shift @result;
+					$$self{Ref}->{$tree}=\$result[0];
+					return $result[0];
 				}
 				else { #This can't happen
 					return undef;
@@ -597,8 +649,10 @@ sub parsValue {
 			elsif ($char eq "{") {
 				$self->storeComment;
 				$self->{TREE}=$tree."->".++$i;
-				my %res=$self->parsMap();
-				push @result,{%res};
+				my $res={};
+				$$self{Ref}->{$self->{TREE}}=$res;
+				%{$res}=$self->parsMap();
+				push @result,$res;
 			}
 			elsif ($char=~m/[\}\)]/) {
 				$$self{Ret}=$char;
@@ -606,26 +660,36 @@ sub parsValue {
 					if (@result) {
 						$self->{TREE}=$tree."->".$#result+1;
 						$self->storeComment;
-						return [@result,$cur]
+						my $res={@result,$cur};
+						$$self{Ref}->{$tree}=$res;
+						return $res;
 					}
 					else { 
 						$self->{TREE}=$tree;
 						$self->storeComment;
+						#$self{Ref}->{$tree}=\$cur;
+						$$self{Ref}->{$tree}=undef;
 						return $cur;
 					}
 				}
 				else {
-					if (@result>2) {
+					if (@result>1) {
 						$self->{TREE}=$tree."->$#result";
 						$self->storeComment;
-						return [@result]
+						my $res=[@result];
+						$$self{Ref}->{$tree}=$res;
+						return $res;
 					}
 					elsif (@result) {
 						$self->{TREE}=$tree;
 						$self->storeComment;
-						return shift @result;
+						#$$self{Ref}->{$tree}=\$result[0];
+						$$self{Ref}->{$tree}=undef;
+						return $result[0];
 					}
 					else {
+						#$$self{Ref}->{$tree}=\$cur;
+						$$self{Ref}->{$tree}=undef;
 						return $cur;
 					}
 				}
@@ -633,8 +697,10 @@ sub parsValue {
 			elsif ($char eq "(") {
 				$self->storeComment;
 				$self->{TREE}=$tree."->".++$i;
-				my @res=$self->getList();
-				push @result,[@res];
+				my $res=[];
+				$$self{Ref}->{$self->{TREE}}=$res;
+				@{$res}=$self->parsList();
+				push @result,$res;
 			}
 			elsif ($char eq ")") {
 				$self->warn("What's a \"$char\" doing here?");
@@ -645,26 +711,36 @@ sub parsValue {
 		if (@result) {
 			$self->{TREE}=$tree."->".$#result+1;
 			$self->storeComment;
-			return [@result,$cur];
+			push @result,$cur;
+			my $res=[@result];
+			$$self{Ref}->{$tree}=$res;
+			return $res;
 		}
 		else { 
 			$self->{TREE}=$tree;
+			#$$self{Ref}->{$tree}=\$cur;
+			$$self{Ref}->{$tree}=undef;
 			$self->storeComment;
 			return $cur;
 		}
 	}
 	else {
-		if (@result>2) {
+		if (@result>1) {
 			$self->{TREE}=$tree."->$#result";
 			$self->storeComment;
-			return [@result];
+			my $res=[@result];
+			$$self{Ref}->{$tree}=$res;
+			return $res;
 		}
 		elsif (@result) {
 			$self->{TREE}=$tree;
 			$self->storeComment;
-			return shift @result;
+			#$$self{Ref}->{$tree}=\$result[0];
+			$$self{Ref}->{$tree}=undef;
+			return $result[0];
 		}
 		else {
+			$$self{Ref}->{$tree}=undef;
 			return $cur;
 		}
 	}
@@ -674,6 +750,7 @@ sub getSingleValue {
 	local $_;
 	my $res="";
 	$res=shift if @_;
+	#$$self{Ref}->{$self->{TREE}}=\$res;
 	my $char;
 	while (defined($char=$self->get())) {
 		print "ParsSingle $char\n" if $$self{Debug};
@@ -685,14 +762,15 @@ sub getSingleValue {
 		}
 		elsif ($char=~m/[\}\)]/) {
 			$$self{Ret}=$char;
-			return $res;
+			return $self->deescape($res,1);
 		}
 		elsif ($char=~m/\s/) {
+			return $self->deescape($res,1);
 			return $res;
 		}
 	}
 	$self->warn ("Unexpected EOF");
-	return $res;
+	return $self->deescape($res,1);
 }
 sub parsList {
 	my $self=shift;
@@ -715,7 +793,7 @@ sub parsList {
 					$cur.=$char;
 				}
 				else {
-					push @result,$self->deescape($cur);
+					push @result,$self->deescape($cur,0);
 					$self->storeComment;
 					$self->{TREE}=$tree."->".$i++;
 					$cur="";
@@ -741,7 +819,7 @@ sub parsList {
 			if ($char!~m/[\=\"\}\{\(\)\s\n]/) {
 				$self->storeComment;
 				$self->{TREE}=$tree."->".$i++;
-				push @result,$self->deescape($self->getSingleValue($char));
+				push @result,$self->getSingleValue($char);
 			}
 			elsif ($char eq "=") {
 				$self->warn("What's a \"$char\" doing here?");
@@ -752,17 +830,21 @@ sub parsList {
 			elsif ($char eq "{") {
 				$self->storeComment;
 				$self->{TREE}=$tree."->".$i++;
-				my %res=$self->parsMap();
-				push @result,{%res};
+				my $res={};
+				$$self{Ref}->{$self->{TREE}}=$res;
+				%{$res}=$self->parsMap();
+				push @result,$res;
 			}
 			elsif ($char eq "}") {
 				$self->warn("What's a \"$char\" doing here?");
 			}
 			elsif ($char eq "(") {
 				$self->storeComment;
-				$self->{TREE}=$tree."->",$i++;
-				my @res=$self->parsList();
-				push @result,[@res];
+				$self->{TREE}=$tree."->".$i++;
+				my $res=[];
+				$$self{Ref}->{$self->{TREE}}=$res;
+				@{$res}=$self->parsList();
+				push @result,$res;
 			}
 			elsif ($char eq ")") {
 				$self->storeComment;
@@ -926,11 +1008,13 @@ DATA can be a scalar, a hashref or an arrayref.
 
 This function unpacks SOFU STRING and returns a scalar, which can be either a string or a reference to a hash or a reference to an array.
 
+=head1 CHANGES
+
+Kyes are now automatically escaped according to the new sofu specification.
+
+Double used references will now be converted to Sofu-References.
+
 =head1 BUGS
-
-Hashes with keys other than strings without whitespaces are not supported due to the restrictions of the sofu file format.
-
-Crossreference will trigger a warning.
 
 Comments written after an object will be rewritten at the top of an object:
 
