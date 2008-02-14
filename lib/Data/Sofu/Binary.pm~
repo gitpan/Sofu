@@ -109,7 +109,7 @@ sub new {
 	my $version = shift;
 	$version = "000_002_000_000" unless $version;
 	$version = $versions{$version};
-	$version = "Data::Sofu::Binary::Bin0200" unless $version;
+	$version = "0200.pm" unless $version;
 	eval "require $version";
 	confess $@ if $@;
 	return $version->new();
