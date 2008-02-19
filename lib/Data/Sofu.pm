@@ -1,8 +1,8 @@
 ###############################################################################
 #Sofu.pm
-#Last Change: 2006-11-01
+#Last Change: 2008-02-18
 #Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Version 0.29
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -18,22 +18,23 @@
 package Data::Sofu;
 use strict;
 use warnings;
-
+use utf8;
 require Exporter;
 use Carp qw/croak confess/;
 $Carp::Verbose=1;
 use vars qw($VERSION @EXPORT @ISA @EXPORT_OK %EXPORT_TAGS);
 @ISA = qw/Exporter/;
 use Encode; 
-use Encode::Guess qw/latin1/; 
+use Encode::Guess qw/UTF-16BE UTF-16LE UTF-32LE UTF-32BE latin1/; 
 
-@EXPORT= qw/readSofu writeSofu getSofucomments writeSofuBinary/;
-@EXPORT_OK= qw/readSofu writeSofu getSofucomments writeSofuBinary packSofu unpackSofu getSofu packSofuBinary SofuloadFile/;
+@EXPORT= qw/readSofu writeSofu getSofucomments writeSofuBinary writeBinarySofu writeSofuML loadSofu/;
+@EXPORT_OK= qw/readSofu writeSofu getSofucomments writeSofuBinary writeBinarySofu packBinarySofu packSofu unpackSofu getSofu packSofuBinary SofuloadFile getSofuComments writeSofuML packSofuML loadSofu/;
 %EXPORT_TAGS=("all"=>[@EXPORT_OK]);
 
-$VERSION="0.28";
+$VERSION="0.29";
 my $sofu;
 my $bdriver; #Binary Interface (new File)
+my $mldriver; #SofuML Interface
 
 sub refe {
 	my $ref=shift;
@@ -56,6 +57,10 @@ sub getSofu {
 	$sofu=Data::Sofu->new() unless $sofu;
 	return $sofu->from(@_);
 }
+sub loadSofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->load(@_);
+}
 sub SofuloadFile {
 	$sofu=Data::Sofu->new() unless $sofu;
 	return $sofu->load(@_);
@@ -64,6 +69,11 @@ sub SofuloadFile {
 sub writeSofu {
 	$sofu=Data::Sofu->new() unless $sofu;
 	return $sofu->write(@_);
+}
+
+sub writeSofuML {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->writeML(@_);
 }
 
 sub loadFile {
@@ -81,9 +91,24 @@ sub getSofucomments {
 	return $sofu->comments;
 }
 
+sub getSofuComments {
+	$sofu->warn("Can't get comments: No File read") unless $sofu;
+	return $sofu->comments;
+}
+
 sub packSofu {
 	$sofu=Data::Sofu->new() unless $sofu;
 	return $sofu->pack(@_);
+}
+
+sub packSofuML {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->packML(@_);
+}
+
+sub writeBinarySofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->writeBinary(@_);
 }
 
 sub writeSofuBinary {
@@ -93,7 +118,12 @@ sub writeSofuBinary {
 
 sub packSofuBinary {
 	$sofu=Data::Sofu->new() unless $sofu;
-	return $sofu->writeBinary(@_);
+	return $sofu->packBinary(@_);
+}
+
+sub packBinarySofu {
+	$sofu=Data::Sofu->new() unless $sofu;
+	return $sofu->packBinary(@_);
 }
 
 sub unpackSofu {
@@ -188,14 +218,15 @@ sub load {
 	my $guess=0;
 	unless (ref $file) {
 		$$self{CurFile}=$file;
-		open $fh,"<",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
+		open $fh,"<:raw",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
 		$guess=1;
 		binmode $fh;
 		#eval {require File::BOM;my ($e,$sp)=File::BOM::defuse($fh);$$self{Ret}.=$sp;$e=$e;};undef $@;
 	}
-	elsif (ref $file eq "Scalar") {
+	elsif (ref $file eq "SCALAR") {
 		$$self{CurFile}="Scalarref";
-		open $fh,"<:utf8",$file or die "Can't open perlIO: $!";
+		open $fh,"<:utf8",$file or die "Can't open perlIO: $!" if utf8::is_utf8($$file);
+		open $fh,"<",$file or die "Can't open perlIO: $!"  if !utf8::is_utf8($$file);;
 	}
 	elsif (ref $file eq "GLOB") {
 		$$self{CurFile}="FileHandle";
@@ -208,13 +239,15 @@ sub load {
 	my $text=do {local $/,<$fh>};
 	{
 		my $b = substr($text,0,2);
+		my $c= substr($text,2,1);
 		if ($b eq "So") {
 			$b=substr($text,0,4);
 			if ($b eq "Sofu") {
 				$b=substr($text,4,2);
+				$c=substr($text,6,1);
 			}
 		}
-		if ($b eq "\x{00}\x{00}" or $b eq "\x{01}\x{00}" or $b eq "\x{00}\x{01}") { #Assume Binary
+		if (($b eq "\x{00}\x{00}" or $b eq "\x{01}\x{00}" or $b eq "\x{00}\x{01}") and $c ne "\x{FE}") { #Assume Binary
 			require Data::Sofu::Binary;
 			$bdriver = Data::Sofu::Binary->new() unless $bdriver;
 			my $tree = $bdriver->load(\$text);
@@ -229,6 +262,7 @@ sub load {
 	if ($guess)  {
 		my $enc=guess_encoding($text);
 		$text=$enc->decode($text) if ref $enc;
+		$text=Encode::decode("UTF-8",$text) unless ref $enc;
 	}
 	substr($text,0,1,"") if substr($text,0,1) eq chr(65279); # UTF-8 BOM (Why ain't it removed ?)
 	close $fh if ref $file;
@@ -407,8 +441,9 @@ sub write {
 		$$self{CurFile}=$file;
 		open $fh,">:raw:encoding(UTF-16)",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
 	}
-	elsif (ref $file eq "Scalar") {
+	elsif (ref $file eq "SCALAR") {
 		$$self{CurFile}="Scalarref";
+		utf8::upgrade($$file);
 		open $fh,">:utf8",$file or die "Can't open perlIO: $!";
 	}
 	elsif (ref $file eq "GLOB") {
@@ -469,9 +504,10 @@ sub read {
 		binmode $fh;
 		#eval {require File::BOM;my ($e,$sp)=File::BOM::defuse($fh);$$self{Ret}.=$sp;$e=$e;};undef $@;
 	}
-	elsif (ref $file eq "Scalar") {
+	elsif (ref $file eq "SCALAR") {
 		$$self{CurFile}="Scalarref";
-		open $fh,"<:utf8",$file or die "Can't open perlIO: $!";
+		open $fh,"<:utf8",$file or die "Can't open perlIO: $!" if utf8::is_utf8($$file);
+		open $fh,"<",$file or die "Can't open perlIO: $!" if !utf8::is_utf8($$file);
 	}
 	elsif (ref $file eq "GLOB") {
 		$$self{CurFile}="FileHandle";
@@ -484,13 +520,15 @@ sub read {
 	my $text=do {local $/,<$fh>};
 	{
 		my $b = substr($text,0,2);
+		my $u = substr($text,2,1);
 		if ($b eq "So") {
 			$b=substr($text,0,4);
 			if ($b eq "Sofu") {
 				$b=substr($text,4,2);
+				$u=substr($text,6,1);
 			}
 		}
-		if ($b eq "\x{00}\x{00}" or $b eq "\x{01}\x{00}" or $b eq "\x{00}\x{01}") { #Assume Binary
+		if (($b eq "\x{00}\x{00}" or $b eq "\x{01}\x{00}" or $b eq "\x{00}\x{01}") and $u ne "\x{fe}") { #Assume Binary
 			require Data::Sofu::Binary;
 			$bdriver = Data::Sofu::Binary->new() unless $bdriver;
 			my ($tree,$c) = $bdriver->read(\$text);
@@ -506,6 +544,7 @@ sub read {
 	if ($guess)  {
 		my $enc=guess_encoding($text);
 		$text=$enc->decode($text) if ref $enc;
+		$text=Encode::decode("UTF-8",$text) unless ref $enc;
 	}
 	close $fh if ref $file;
 	$$self{CurFile}="";
@@ -563,7 +602,8 @@ sub unpack($) {
 	$$self{References}=[];
 	$self->{Commentary}={};
 	my $c;
-	1 while ($c=$self->get() and $c =~ m/\s/);
+	my $bom=chr(65279);
+	1 while ($c=$self->get() and ($c =~ m/\s/ or $c eq $bom));
 	return unless defined $c;
 	if ($c eq "{") {
 		my $result;
@@ -598,6 +638,31 @@ sub unpack($) {
 			$self->warn("Trailing Characters: $c");
 		}
 		return $result;
+	}
+	elsif ($c eq "<") {
+		my $x;
+		1 while ($x=$self->get() and $x =~ m/\s/);
+		if ($x eq "!" or $x eq "S" or $x eq "?") { # <! or <S not valid Sofu, so it might be XML
+			require Data::Sofu::SofuML;
+			$mldriver=Data::Sofu::SofuML->new unless $mldriver;
+			if ($$self{OBJECT}) {
+				return $mldriver->load($$self{READLINE});
+			}
+			my ($r,$c) = $mldriver->read($$self{READLINE});
+			$self->{Commentary}=$c;
+			return $r;
+		}
+		else {
+			$self->{COUNT}=0;
+			my $result=$self->parsMap;
+			$$self{Ref}->{""}=$result;
+			$self->postprocess();
+			1 while ($c=$self->get() and $c =~ m/\s/);
+				if ($c=$self->get()) {
+			$self->warn("Trailing Characters: $c");
+			}
+			return $result;
+		}
 	}
 	elsif ($c!~m/[\=\"\}\{\(\)\s\n]/) {
 		$$self{Ret}=$c;		
@@ -823,7 +888,7 @@ sub parsMap {
 		elsif ($char eq "}") {
 			$self->storeComment;
 			$self->{TREE}=$tree;
-			return Data::Sofu::Map->new(\%result) if $self->{OBJECT};
+			return Data::Sofu::Map->new(\%result,[@order]) if $self->{OBJECT};
 			return \%result;
 		}
 		elsif ($char eq "\"") {
@@ -864,7 +929,7 @@ sub parsMap {
 			$self->warn("What's a \"$char\" doing here?");
 		}
 	}
-	return Data::Sofu::Map->new(\%result,\@order) if $self->{OBJECT};
+	return Data::Sofu::Map->new(\%result,[@order]) if $self->{OBJECT};
 	return \%result;
 }
 sub parsValue {
@@ -1195,6 +1260,40 @@ sub packBinary {
 	return $bdriver->pack(@_);
 }
 
+sub writeML {
+	my $self=shift;
+	my $file=shift;
+	my $fh;
+	require Data::Sofu::SofuML;
+	$mldriver = Data::Sofu::SofuML->new() unless $mldriver;
+	unless (ref $file) {
+		open $fh,">:encoding(UTF-8)",$file or die "Sofu error open: $$self{CurFile} file: $!";
+	}
+	elsif (ref $file eq "SCALAR") {
+		open $fh,">:utf8",$file or die "Can't open perlIO: $!";
+	}
+	elsif (ref $file eq "GLOB") {
+		$fh=$file;
+	}
+	else {
+		$self->warn("The argument to writeML has to be a filename, reference to a scalar or filehandle");
+		return;
+	}
+	binmode $fh;
+	print $fh $mldriver->pack(@_);
+	#$fh goes out of scope here!
+}
+
+sub packML {
+	require Data::Sofu::SofuML;
+	my $self=shift;
+	$mldriver = Data::Sofu::SofuML->new() unless $mldriver;
+	$mldriver->{INDENT} = "";
+	my $a=$mldriver->pack(@_);
+	$mldriver->{INDENT} = "\t";
+	return $a;
+}
+
 sub writeBinary {
 	my $self=shift;
 	my $file=shift;
@@ -1202,10 +1301,10 @@ sub writeBinary {
 	require Data::Sofu::Binary;
 	$bdriver = Data::Sofu::Binary->new() unless $bdriver;
 	unless (ref $file) {
-		open $fh,">:raw",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
+		open $fh,">:raw",$file or die "Sofu error open: $$self{CurFile} file: $!";
 	}
-	elsif (ref $file eq "Scalar") {
-		open $fh,">:utf8",$file or die "Can't open perlIO: $!";
+	elsif (ref $file eq "SCALAR") {
+		open $fh,">",$file or die "Can't open perlIO: $!";
 	}
 	elsif (ref $file eq "GLOB") {
 		$fh=$file;
@@ -1323,7 +1422,7 @@ a reference to a scalar (Data will be read from a scalar)
 
 These methods are not exported by default:
 
-=head2 SofuloadFile(FILE)
+=head2 loadSofu(FILE)
 
 Reads a .sofu file and converts it to Sofud compatible objects
 
@@ -1352,6 +1451,15 @@ COMMENTS is a reference to hash with comments like the one retuned by comments()
 
 This function unpacks SOFU STRING and returns a scalar, which can be either a string or a reference to a hash or a reference to an array.
 
+Can read Sofu and SofuML files but not binary Sofu files
+
+Note you can also read packed Data with readSofu(\<packed Data string>):
+
+	my $packed = packSofu($tree,$comments);
+	my $tree2 = unpackSofu($packed);
+	my $tree3 = readSofu(\$packed); 
+	# $tree2 has the same data as $tree3 (and $tree of course)
+
 =head2 C<writeSofuBinary(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])>
 
 Writes the Data as a binary file.
@@ -1364,7 +1472,7 @@ a filename or
 
 a reference to a scalar (Data will be read from a scalar)
 
-DATA has to be a reference to a Hash
+DATA has to be a reference to a Hash or Data::Sofu::Object
 
 COMMENTS is a reference to hash with comments like the one retuned by comments
 
@@ -1374,6 +1482,25 @@ To write other Datastructures use this:
 
 	writeSofuBinary("1.sofu",{Value=>$data});
 
+=head2 C<writeSofuML(FILE, DATA, [COMMENTS,[HEADER]])>
+
+Writes the Data as an XML file (for postprocessing with XSLT or CSS)
+
+FILE can be:
+
+A reference to a filehandle with some encoding set or
+
+a filename or
+
+a reference to a scalar (Data will be read from a scalar)
+
+DATA has to be a reference to a Hash or Data::Sofu::Object
+
+COMMENTS is a reference to hash with comments like the one retuned by comments, only used when DATA is not a Data::Sofu::Object
+
+HEADER can be an costum file header, (defaults to C<< qq(<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE Sofu SYSTEM "http://sofu.sf.net/Sofu.dtd">\n) >> );
+
+Default output (when given a filename) is UTF-8.
 
 =head1 CLASS-METHODS
 
@@ -1503,7 +1630,7 @@ a filename or
 
 a reference to a scalar (Data will be read from a scalar)
 
-DATA has to be a reference to a Hash
+DATA has to be a reference to a Hash or Data::Sofu::Object
 
 COMMENTS is a reference to hash with comments like the one retuned by comments
 
@@ -1513,11 +1640,50 @@ To write other Datastructures use this:
 
 	$sofu->writeBinary("1.sofu",{Value=>$data});
 
+=head2 C<writeML(FILE, DATA, [COMMENTS,[HEADER]])>
+
+Writes the Data as an XML file (for postprocessing with XSLT or CSS)
+
+FILE can be:
+
+A reference to a filehandle with some encoding set or
+
+a filename or
+
+a reference to a scalar (Data will be read from a scalar)
+
+DATA has to be a reference to a Hash or Data::Sofu::Object
+
+COMMENTS is a reference to hash with comments like the one retuned by comments, only used when DATA is not a Data::Sofu::Object
+
+HEADER can be an costum file header, (defaults to C<< qq(<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE Sofu SYSTEM "http://sofu.sf.net/Sofu.dtd">\n) >> );
+
+Default output (when given a filename) is UTF-8.
+
+=head2 packML (DATA, COMMENTS,[HEADER])
+
+Returns DATA as an XML file (for postprocessing with XSLT or CSS) with no Indentation
+
+DATA has to be a reference to a Hash or Data::Sofu::Object
+
+COMMENTS is a reference to hash with comments like the one retuned by comments, only used when DATA is not a Data::Sofu::Object
+
+HEADER can be an costum file header, (defaults to C<< qq(<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE Sofu SYSTEM "http://sofu.sf.net/Sofu.dtd">\n) >> );
+
+Those are not (quite) the same:
+
+	$string = $sofu->packML($tree,$comments) #Will not indent.
+	$sofu->writeML(\$string,$tree,$comments)# Will indent.
+
 =head1 CHANGES
 
 Kyes are now automatically escaped according to the new sofu specification.
 
 Double used references will now be converted to Sofu-References.
+
+read, load, readSofu, loadSofu and Data::Sofu::loaFile now detect binary sofu (and load Data::Sofu::Binary)
+
+read, load, readSofu, loadSofu, Data::Sofu::loaFile, unpackSofu and unpack detect SofuML (and load Data::Sofu::SofuML)
 
 =head1 BUGS
 
@@ -1543,6 +1709,8 @@ On the other hand the output defaults to UTF-16 (UNIX) (like SofuD). If you need
 
 	open my $fh,">:encoding(latin1)","out.sofu";
 	writeSofu($fh,$data);
+
+Warning: UTF32 BE is not supported without BOM (looks too much like Binary);
 
 Notes:
 
@@ -1574,6 +1742,8 @@ perl(1),L<http://sofu.sf.net>
 For Sofud compatible Object Notation: L<Data::Sofu::Object>
 
 For Sofu Binary: L<Data::Sofu::Binary>
+
+For SofuML L<Data::Sofu::SofuML>
 
 =cut
 

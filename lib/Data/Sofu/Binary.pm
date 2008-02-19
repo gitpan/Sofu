@@ -2,7 +2,7 @@
 #Binary.pm
 #Last Change: 2008-02-12
 #Copyright (c) 2008 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Version 0.29
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -53,7 +53,7 @@ package Data::Sofu::Binary;
 use strict;
 use warnings;
 
-our $VERSION="0.28";
+our $VERSION="0.29";
 #We are really going to need these modules:
 use Encode;
 use Carp qw/confess/;
@@ -99,8 +99,8 @@ Creates a new Binary Driver using DRIVER or the latest one available.
 	$bsofu = Data::Sofu::Binary->new(); #Using the latest.
 	$bsofu = Data::Sofu::Binary->new("000_002_000_000"); Taking a specific one.
 	#You can call it directly:
-	require Data::Sofu::Binary::Bin0200;
-	$bsofu = Data::Sofu::Binary::Bin0200->new(); #The same
+	require C<Data::Sofu::Binary::Bin0200>;
+	$bsofu = C<Data::Sofu::Binary::Bin0200>->new(); #The same
 
 =cut 
 
@@ -109,7 +109,7 @@ sub new {
 	my $version = shift;
 	$version = "000_002_000_000" unless $version;
 	$version = $versions{$version};
-	$version = "Data::Sofu::Binary::Bin0200" unless $version;
+	$version = "0200.pm" unless $version;
 	eval "require $version";
 	confess $@ if $@;
 	return $version->new();

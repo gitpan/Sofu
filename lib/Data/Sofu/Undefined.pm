@@ -54,7 +54,7 @@ use warnings;
 require Data::Sofu::Object;
 require Data::Sofu::List;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.28";
+our $VERSION="0.29";
 
 =head1 METHODS
 
@@ -73,6 +73,7 @@ sub new {
 	my $self={};
 	bless $self,shift;
 	return Data::Sofu::Value(@_) if @_;
+	return $self;
 }
 
 =head2 isDefined()

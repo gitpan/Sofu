@@ -29,6 +29,11 @@ Provides a interface similar to the original SofuD (sofu.sf.net)
 	my $map = Data::Sofu::Object->new({Text=>"Hello World"});
 	print ref $map; # Data::Sofu::Map;
 	$map->write(\*STDOUT); # Text = "Hello World"
+	$map->write("file.sofu"); # Text = "Hello World"
+	#You don't need Data::Sofu::Object:
+	use Data::Sofu;
+	$map = loadSofu("file.sofu");
+	$map->write(\*STDOUT);
 
 =head1 SYNTAX
 
@@ -45,7 +50,7 @@ require Data::Sofu::List;
 require Data::Sofu::Value;
 require Data::Sofu::Undefined;
 require Data::Sofu::Reference;
-our $VERSION="0.28";
+our $VERSION="0.29";
 my %seen;
 our %OBJ;
 my $indent = "\t";
@@ -77,7 +82,7 @@ sub new {
 		my $o = shift;
 		if (ref($o) eq "HASH") {
 			if (not $seen{$o}) {
-				#print "BOXXX";
+				#confess "BOXXX";
 				$seen{$o}=Data::Sofu::Map->new();
 				$seen{$o}->set($o);
 				return $seen{$o};
@@ -88,7 +93,7 @@ sub new {
 		}
 		elsif (ref($o) eq "ARRAY") {
 			if (not $seen{$o}) {
-				#print "BOXXX";
+				#confess "BOXXX";
 				$seen{$o}= Data::Sofu::List->new();
 				$seen{$o}->set($o);
 				return $seen{$o};
@@ -98,14 +103,14 @@ sub new {
 			}
 		}
 		elsif (ref($o) eq "SCALAR") {
-			#print "BOXXX";
+			#confess "BOXXX";
 			return Data::Sofu::Value->new($$o);
 		}
 		elsif (ref($o)) {
 			return $o;
 		}
 		else {
-			#print "BOXXX";
+			#confess "BOXXX";
 			return Data::Sofu::Value->new($o) if defined $o;
 			return Data::Sofu::Undefined->new()
 		}
@@ -325,11 +330,12 @@ Returns the amount of comment lines.
 
 sub hasComment {
 	my $self=shift;
+	return 0 unless $self->{Comment};
 	return scalar @{$self->{Comment}};
 }
 
 =head2 setComment(COMMENT)
-
+ 
 Sets the comments for this Object.
 
 COMMENT should be a reference to an Array
@@ -519,9 +525,10 @@ sub write {
 	my $fh;
 	%OBJ=();
 	unless (ref $file) {
-		open $fh,">:raw:encoding(UTF-16)",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
+		open $fh,">:raw:encoding(UTF-16)",$file or die "Sofu error open: $$self{CurFile} file: $!";
 	}
-	elsif (ref $file eq "Scalar") {
+	elsif (ref $file eq "SCALAR") {
+		utf8::upgrade($$file);
 		open $fh,">:utf8",$file or die "Can't open perlIO: $!";
 	}
 	elsif (ref $file eq "GLOB") {
@@ -558,10 +565,10 @@ sub writeBinary {
 	my $fh;
 	%OBJ=($self=>"->");
 	unless (ref $file) {
-		open $fh,">:raw",$$self{CurFile} or die "Sofu error open: $$self{CurFile} file: $!";
+		open $fh,">:raw",$file or die "Sofu error open: $$self{CurFile} file: $!";
 	}
-	elsif (ref $file eq "Scalar") {
-		open $fh,">:utf8",$file or die "Can't open perlIO: $!";
+	elsif (ref $file eq "SCALAR") {
+		open $fh,">",$file or die "Can't open perlIO: $!";
 	}
 	elsif (ref $file eq "GLOB") {
 		$fh=$file;

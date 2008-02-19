@@ -44,7 +44,7 @@ use warnings;
 require Data::Sofu::Object;
 require Data::Sofu;
 use Carp;
-our $VERSION="0.28";
+our $VERSION="0.29";
 our @ISA = qw/Data::Sofu::Object/;
 
 =head1 METHODS
@@ -495,6 +495,7 @@ sub binaryPack {
 	my $bin=Data::Sofu::Binary->new("000_002_000_000"); #Use this Version, the next Version will
 	my $str=$bin->packHeader(@_);
 	$str.=$self->packComment($bin);
+	%Data::Sofu::Object::OBJ=($self=>"->");
 	#foreach my $key (keys %{$self->{Map}}) {
 	foreach my $key ($self->orderedKeys()) {
 		$str.=$bin->packText($key);

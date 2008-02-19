@@ -56,7 +56,7 @@ use strict;
 use warnings;
 require Data::Sofu::Object;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.28";
+our $VERSION="0.29";
 use vars qw/$AUTOLOAD/;
 
 =head1 METHODS

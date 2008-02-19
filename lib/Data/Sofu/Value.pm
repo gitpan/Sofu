@@ -45,7 +45,7 @@ require Data::Sofu::List;
 require Data::Sofu::Undefined;
 require Data::Sofu;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.28";
+our $VERSION="0.29";
 
 =head1 METHODS
 

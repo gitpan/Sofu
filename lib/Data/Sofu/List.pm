@@ -41,7 +41,7 @@ use strict;
 use warnings;
 require Data::Sofu::Object;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.28";
+our $VERSION="0.29";
 
 =head1 METHODS
 
@@ -291,7 +291,7 @@ sub next {
 		return;
 	}
 	if ($self->{Iter} > $#{$self->{List}}) {
-		$self->{Iter}=0;
+		delete $self->{Iter};
 		return undef;
 	}
 	

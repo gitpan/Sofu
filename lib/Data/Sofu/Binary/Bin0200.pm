@@ -38,8 +38,9 @@ This Module is pure OO, exports nothing
 package Data::Sofu::Binary::Bin0200;
 use strict;
 use warnings;
+use bytes;
 
-our $VERSION="0.28";
+our $VERSION="0.29";
 #We are really going to need these modules:
 use Encode;
 use Carp qw/confess/;
@@ -93,10 +94,10 @@ sub encoding { #Switches the Encoding
 	my %encoding;
 	@encoding{map {lc $_} @encoding} = (0 .. 12);
 	if (exists $encoding{lc $id}) {
-		$self->{EncID}=$encoding{$id};
-		return $self->{Encoding}=$encoding[$encoding{$id}];
+		$self->{EncID}=$encoding{lc $id};
+		return $self->{Encoding}=$encoding[$self->{EncID}];
 	}
-	if ($encoding[$id]) {
+	if ($encoding[int $id]) {
 		$self->{EncID}=$id;
 		return $self->{Encoding}=$encoding[$id];
 	}
@@ -315,6 +316,7 @@ sub postprocess {
 	$self->{Ref}->{""} = $self->{Ref}->{"->"} = $self->{Ref}->{"="};
 	foreach my $e (@{$$self{References}}) {
 		#next;
+		#print $$e;
 		my $target = $$$e;
 		$target=~s/^@//;
 		$target="->".$target if $target and $target !~ m/^->/;
@@ -506,7 +508,7 @@ sub unpackType {
 		return $self->unpackHash($tree);
 	}
 	elsif ($type == 4) {
-		return $self->unpackReference($tree);
+		return $self->unpackRef($tree);
 	}
 }
 
@@ -806,7 +808,7 @@ Encodes a STRING using Encoding and returns it.
 sub packText {
 	my $self=shift;
 	my $text=shift;
-	return $self->packLong(0) unless $text;
+	return $self->packLong(0) if not defined $text or $text eq "";
 	$text = Encode::encode($self->{Encoding},$text,Encode::FB_CROAK);
 	return $self->packLong(length($text)).$text;
 }
@@ -1153,6 +1155,7 @@ sub packObject { # Use the Object implemented Packer for now.
 		$str.=$self->packText($key);
 		$str.=$self->packObjectData($data->object($key),"->$kkey");
 	}
+	#die $str;
 	return $str;
 }
 
@@ -1180,8 +1183,8 @@ sub packObjectData {
 		return $self->packType(4).$self->packComment($tree,$odata->getComment()).$self->packText("@".$data->follow());
 	}
 	if ($self->{SEEN}->{$data}) {
-		Carp::cluck();
-		print "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
+		#Carp::cluck();
+		#print "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n";
 		return $self->packType(4).$self->packComment($tree,$odata->getComment()).$self->packText("@".$self->{SEEN}->{$data});
 	}
 	$self->{SEEN}->{$data}=$tree;
@@ -1204,7 +1207,6 @@ Encodes one Data::Sofu::List and its contents and returns it.
 
 =cut
 
-use Data::Dumper;
 
 sub packList {
 	my $self=shift;
@@ -1212,9 +1214,7 @@ sub packList {
 	my $tree=shift;
 	my $str=$self->packLong($data->length());
 	my $i=0;
-	print Data::Dumper->Dump([$data]);
 	while (my $element = $data->next()) {
-		print Data::Dumper->Dump([$element]);
 		$str.=$self->packObjectData($element,"$tree->".$i++);
 	}
 	return $str;
