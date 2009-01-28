@@ -1,8 +1,8 @@
 ###############################################################################
 #Reference.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -56,7 +56,7 @@ use strict;
 use warnings;
 require Data::Sofu::Object;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.29";
+our $VERSION="0.3";
 use vars qw/$AUTOLOAD/;
 
 =head1 METHODS

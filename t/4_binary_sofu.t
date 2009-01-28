@@ -334,5 +334,6 @@ is_deeply(scalar loadSofu("test2.sofu"),$objects,"loadSofu encoding latin1, byte
 
 
 unlink "test.sofu";
-#unlink "test.bsofu";
+unlink "test2.sofu";
+unlink "test.bsofu";
 

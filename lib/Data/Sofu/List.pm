@@ -1,8 +1,8 @@
 ###############################################################################
 #List.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -41,7 +41,7 @@ use strict;
 use warnings;
 require Data::Sofu::Object;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.29";
+our $VERSION="0.3";
 
 =head1 METHODS
 
@@ -259,7 +259,7 @@ sub value {
 	return $self->object(shift(@_))->asValue();
 }
 
-=head2 C<setElement(INDEX, VALUE)>
+=head2 setElement(INDEX, VALUE)
 
 Perl only (for now)
 
@@ -298,7 +298,7 @@ sub next {
 	return $self->{List}->[$self->{Iter}++];
 }
 
-=head2 C<splice(OFFSET, LENGTH, REPLACEMENT)>
+=head2 splice(OFFSET, LENGTH, REPLACEMENT)
 
 Perl only (for now)
 
@@ -315,7 +315,7 @@ sub splice {
 	return CORE::splice(@{$self->{List}},@_);
 }
 
-=head2 C<spliceList(OFFSET, LENGTH, REPLACEMENT)>
+=head2 spliceList(OFFSET, LENGTH, REPLACEMENT)
 
 Perl only (for now)
 
@@ -458,7 +458,7 @@ sub clear {
 	$self->{List}=[];
 }
 
-=head2
+=head2 length
 
 Perl only (for now)
 
@@ -549,7 +549,7 @@ sub storeComment {
 
 }
 
-=head2 C<stringify(LEVEL, TREE)>
+=head2 stringify(LEVEL, TREE)
 
 Returns a string representing this List and all its elements.
 
@@ -578,7 +578,7 @@ sub stringify {
 	return $str;
 }
 
-=head2 C<binarify(TREE,BINARY DRIVER)>
+=head2 binarify(TREE,BINARY DRIVER)
 
 Returns the binary version of this List and all its elements using the BINARY DRIVER. Don't call this one, use binaryPack instead.
 

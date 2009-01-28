@@ -1,8 +1,8 @@
 ###############################################################################
 #List.pm
-#Last Change: 2008-02-07
-#Copyright (c) 2008 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -40,7 +40,7 @@ use strict;
 use warnings;
 use bytes;
 
-our $VERSION="0.29";
+our $VERSION="0.3";
 #We are really going to need these modules:
 use Encode;
 use Carp qw/confess/;
@@ -456,7 +456,7 @@ sub unpackHash {
 }
 
 
-=head2 unpackHash(TREE)
+=head2 unpackArray(TREE)
 
 Decodes an array, its comment and its content
 
@@ -484,7 +484,7 @@ sub unpackArray {
 }
 
 
-=head2 C<unpackType(TYPE,TREE)>
+=head2 unpackType(TYPE,TREE)
 
 Decodes a datastructure of TYPE.
 
@@ -720,7 +720,7 @@ sub unpackList2 { #faster version, using the perlinterface
 	
 }
 
-=head2 C<unpackObjectType(TYPE,TREE)>
+=head2 unpackObjectType(TYPE,TREE)
 
 Unpacks a datastructure defined by TYPE
 
@@ -748,7 +748,7 @@ sub unpackObjectType {
 }
 
 
-=head2 unpack(BOM)
+=head2 unpackObject(BOM)
 
 Starts unpacking into a Data::Sofu::Object structure using BOM, gets encoding and the contents
 
@@ -813,7 +813,7 @@ sub packText {
 	return $self->packLong(length($text)).$text;
 }
 
-=head2 C<packData(DATA,TREE)>
+=head2 packData(DATA,TREE)
 
 Encodes one perl datastructure and its contents and returns it.
 
@@ -854,7 +854,7 @@ sub packData {
 	return $self->packType(2).$self->packComment($tree).$self->packArray($data,$tree);
 }
 
-=head2 C<packArray(DATA,TREE)>
+=head2 packArray(DATA,TREE)
 
 Encodes one perl array and its contents and returns it.
 
@@ -872,7 +872,7 @@ sub packArray {
 	return $str;
 }
 
-=head2 C<packArray(DATA,TREE)>
+=head2 packHash(DATA,TREE)
 
 Encodes one perl hash and its contents and returns it.
 
@@ -891,7 +891,7 @@ sub packHash {
 	return $str;
 }
 
-=head2 C<pack(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK]]]])>
+=head2 pack(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK]]]])
 
 Packs a structure (TREE) into a string using the Sofu binary file format.
 
@@ -1117,7 +1117,7 @@ sub pack { #Built tree into b-stream
 	return $str;
 }
 
-=head2 C<packObject(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK]]]])>
+=head2 packObject(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK]]]])
 
 Same as pack() but for C<Data::Sofu::Object>'s only
 
@@ -1160,7 +1160,7 @@ sub packObject { # Use the Object implemented Packer for now.
 }
 
 
-=head2 C<packData(DATA,TREE)>
+=head2 packObjectData(DATA,TREE)
 
 Encodes one Data::Sofu::Object and its contents and returns it.
 
@@ -1201,7 +1201,7 @@ sub packObjectData {
 	return $self->packType(0).$self->packComment($tree,$odata->getComment());
 }
 
-=head2 C<packList(DATA,TREE)>
+=head2 packList(DATA,TREE)
 
 Encodes one Data::Sofu::List and its contents and returns it.
 
@@ -1220,7 +1220,7 @@ sub packList {
 	return $str;
 }
 
-=head2 C<packMap(DATA,TREE)>
+=head2 packMap(DATA,TREE)
 
 Encodes one Data::Sofu::Map and its contents and returns it.
 
@@ -1243,7 +1243,7 @@ sub packMap {
 }
 
 
-=head2 C<packComment(TREE,ADD)>
+=head2 packComment(TREE,ADD)
 
 Packs the comment for (TREE) + ADD and returns it.
 
@@ -1267,7 +1267,7 @@ sub packComment {
 	
 }
 
-=head2 C<packHeader([ENCODING,[BYTEORDER,[SOFUMARK]]])>
+=head2 packHeader([ENCODING,[BYTEORDER,[SOFUMARK]]])
 
 Packs the header of the file and sets encoding and byteorder
 

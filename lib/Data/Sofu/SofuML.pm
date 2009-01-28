@@ -1,8 +1,8 @@
 ###############################################################################
 #SofuML.pm
-#Last Change: 2008-02-15
-#Copyright (c) 2008 Marc-Seabstian "Maluku" Lucksch
-#Version 0.29
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -69,7 +69,7 @@ package Data::Sofu::SofuML;
 use strict;
 use warnings;
 
-our $VERSION="0.29";
+our $VERSION="0.3";
 #We are really going to need these modules:
 use Encode;
 use Carp qw/confess cluck/;
@@ -94,9 +94,9 @@ sub new {
 	return $self;
 }
 
-=head2 C<XMLescape(STRING,LEVEL)>
+=head2 whiteescape (STRING)
 
-Returns the (quite badly) escaped form of STRING
+Escapes whitespace for use in XML
 
 =cut
 
@@ -105,12 +105,18 @@ sub whiteescape {
 	my $data = shift;
 	return $data if ($data eq " ");
 	my $f = "";
-	$data=~s/([^\ \n])/sprintf("&#x%X;",ord($1))/eg;
+	$data=~s/(.)/sprintf("&#x%X;",ord($1))/esg;
 	
 	return $f.$data;
 }
 
-sub XMLescape {
+=head2 XMLescapeOld(STRING,LEVEL)
+
+Older version of XMLescape, still need by some.
+
+=cut
+
+sub XMLescapeOld {
 	my $self=shift;
 	my $string=shift;
 	my $level=shift;
@@ -129,6 +135,35 @@ sub XMLescape {
 	#return $self->indent($level).$string; #makes bad Juju with XSLT
 }
 
+=head2 XMLescape(STRING,LEVEL)
+
+Returns the (quite badly) escaped form of STRING
+
+=cut
+
+sub XMLescape {
+	my $self=shift;
+	my $string=shift;
+	my $level=shift;
+	$string =~ s/\&/&amp;/g;
+	$string =~ s/\</&lt;/g;
+	$string =~ s/\>/&gt;/g;
+	$string =~ s/\"/&quot;/g;
+	$string =~ s/\'/&apos;/g;
+	$string=~s"^([\s\n\x0A]+)"join '',map {sprintf('&#x%X;' ,ord($_))} split //,$1"emg;
+	$string=~s/([\s\n\x0A]+)$/join '',map {sprintf('&#x%X;' ,ord($_))} split m##,$1/emg;
+	$string =~ s/([\s\n\x0A]+)/$self->whiteescape($1)/eg;
+	#$string=~s/\n/$self->indent($level)."\n"/eg;
+	return $string;
+	#return $self->indent($level).$string; #makes bad Juju with XSLT
+}
+
+=head2 XMLunescape(STRING)
+
+Inversion of XMLescape
+
+=cut
+
 sub XMLunescape {
 	my $string=shift;
 	$string =~ s/^\s+//g;
@@ -136,6 +171,7 @@ sub XMLunescape {
 	$string =~ s/\s*\n\s*/\n/g;
 	$string =~ s/[\s[^\n]]+/ /g;
 	$string =~ s/&#x([\dabcdefABCDEF]+);/chr(hex($1))/eg;
+	$string =~ s/&#([\dabcdefABCDEF]+);/chr($1)/eg;
 	$string =~ s/&lt;/</g;
 	$string =~ s/&gt;/>/g;
 	$string =~ s/&quot;/"/g;
@@ -144,7 +180,29 @@ sub XMLunescape {
 	return $string;
 }
 
-=head2 C<XMLKeyescape(KEY)>
+=head2 XMLunescapeRestrictive(STRING)
+
+Like XMLunescape, but more restrictive (currently not used)
+
+=cut
+
+sub XMLunescapeRestrictive {
+	my $string=shift;
+	$string =~ s/^\s+//g;
+	$string =~ s/\s+$//g;
+	$string =~ s/\s*\n\s*/ /g;
+	$string =~ s/[\s[^\n]]+/ /g;
+	$string =~ s/&#x([\dabcdefABCDEF]+);/chr(hex($1))/eg;
+	$string =~ s/&#([\dabcdefABCDEF]+);/chr($1)/eg;
+	$string =~ s/&lt;/</g;
+	$string =~ s/&gt;/>/g;
+	$string =~ s/&quot;/"/g;
+	$string =~ s/&apos;/'/g;
+	$string =~ s/&amp;/&/g;
+	return $string;
+}
+
+=head2 XMLKeyescape(KEY)
 
 Returns the (quite badly) escaped form of KEY
 
@@ -222,7 +280,7 @@ sub packComment {
 	return "<!-- $str -->" ;
 }
 
-=head2 C<packElement(ELEMENT,OBJECT,LEVEL,ID)> 
+=head2 packElement(ELEMENT,OBJECT,LEVEL,ID) 
 
 Returns the ELEMENT for OBJECT
 
@@ -236,6 +294,13 @@ sub packElement {
 	my $id=shift;
 	return $self->indent($level)."<$elem id=\"$id\">".$self->packObjectComment($data);
 }
+
+=head2 packElement2(ELEMENT,OBJECT,LEVEL,ID) 
+
+Same as packElement, without comments.
+
+=cut
+
 sub packElement2 {
 	my $self=shift;
 	my $elem=shift;
@@ -245,9 +310,9 @@ sub packElement2 {
 	return $self->indent($level)."<$elem id=\"$id\">";
 }
 
-=head2 C<packItem(ELEMENT,LEVEL,ID,TREE)> 
+=head2 packItem(ELEMENT,LEVEL,ID,TREE) 
 
-Returns the an XML item
+Returns the the XML version of an item
 
 =cut
 
@@ -259,6 +324,13 @@ sub packItem {
 	my $tree=shift;
 	return $self->indent($level)."<$elem id=\"$id\">".$self->packComment($tree)
 }
+
+=head2 packItem2(ELEMENT,LEVEL,ID,TREE) 
+
+Same as packItem, but doesn't write a comment.
+
+=cut
+
 sub packItem2 {
 	my $self=shift;
 	my $elem=shift;
@@ -269,7 +341,7 @@ sub packItem2 {
 }
 
 
-=head2 C<packObjectData(OBJECT,LEVEL)>
+=head2 packObjectData(OBJECT,LEVEL)
 
 Converts one Data::Sofu::Object into its XML representation
 
@@ -320,7 +392,7 @@ sub packObjectData {
 	return $self->indent($level)."<Undefined id=\"$id\" />\n".$self->packObjectComment($odata);
 }
 
-=head2 C<packData(DATA,LEVEL,TREE)>
+=head2 packData(DATA,LEVEL,TREE)
 
 Converts one perl structure into its XML representation
 
@@ -366,7 +438,7 @@ sub packData {
 }
 
 
-=head2 C<packObject(OBJECT,[HEADER])>
+=head2 packObject(OBJECT,[HEADER])
 
 Converts one Data::Sofu::Object into its XML representation
 
@@ -402,7 +474,7 @@ sub packObject {
 	return $str.$self->indent($level)."</Sofu>\n";
 }
 
-=head2 pack(TREE,[COMMENTS,[HEADER]]) 
+=head2 pack(TREE,[COMMENTS,[HEADER]])
 
 packs TREE to XML using Comments
 
@@ -468,7 +540,7 @@ my @keys = ();
 my %com = ();
 my $end=0;
 
-=head2 load (STRING) 
+=head2 read(STRING)
 
 Unpacks a SofuML string to perl datastructures
 
@@ -508,7 +580,7 @@ sub read {
 	return $ret;
 }
 
-=head2 load (STRING) 
+=head2 load(STRING)
 
 Unpacks SofuML string to Data::Sofu::Object's from STRING
 
@@ -547,8 +619,14 @@ sub load {
 	return $ret;
 }
 
-
 ## XML Parser Handlers
+
+=head2 tag_start
+
+Handler for L<XML::Parser>
+
+=cut
+
 sub tag_start {
 	my $xp=shift;
 	my $tag=lc(shift);
@@ -598,12 +676,24 @@ sub tag_start {
 	#print Data::Dumper->Dump([\@tree,$ret,\%com,\@ref,$tag,$key],[qw/@tree $ret %com @ref $tag $key/]);<>;
 }
 
+=head2 characters
+
+Handler for L<XML::Parser>
+
+=cut
+
 sub characters {
 	my $xp=shift;
 	my $data=$xp->recognized_string;
 	$tree[-1].= $data unless ref $tree[-1] or not defined $tree[-1]; #Ignore chars in everything but a Value
 	#print Data::Dumper->Dump([\@tree,$ret,\%com,\@ref,$data],[qw/@tree $ret %com @ref $data/]);<>;
 }
+
+=head2 comment
+
+Handler for L<XML::Parser>
+
+=cut
 
 sub comment {
 	my $xp=shift;
@@ -617,6 +707,12 @@ sub comment {
 	push @{$com{$tree}},split /\n/,$data;
 	$keys[-1]++ if ($end);
 }
+
+=head2 tag_end
+
+Handler for L<XML::Parser>
+
+=cut
 
 sub tag_end {
 	my $xp=shift;
@@ -645,6 +741,12 @@ sub tag_end {
 }
 
 my $elem = 0;
+
+=head2 otag_start
+
+Handler for L<XML::Parser>, object mode
+
+=cut
 
 sub otag_start {
 	my $xp=shift;
@@ -699,12 +801,24 @@ sub otag_start {
 	#print Data::Dumper->Dump([\@tree,$ret,\%com,\@ref,$tag,$key],[qw/@tree $ret %com @ref $tag $key/]);<>;
 }
 
+=head2 ocharacters
+
+Handler for L<XML::Parser>, object mode
+
+=cut
+
 sub ocharacters {
 	my $xp=shift;
 	my $data=$xp->recognized_string;
 	$tree[-1]->set($tree[-1]->toString().$data) if $tree[-1] and $tree[-1]->isValue(); #Ignore chars in everything but a Value
 	#print Data::Dumper->Dump([\@tree,$ret,\%com,\@ref,$data],[qw/@tree $ret %com @ref $data/]);<>;
 }
+
+=head2 ocomment
+
+Handler for L<XML::Parser>, object mode
+
+=cut
 
 sub ocomment {
 	my $xp=shift;
@@ -718,6 +832,12 @@ sub ocomment {
 		$tree[-1]->appendComment([split /\n/,$data]) if $tree[-1];
 	}
 }
+
+=head2 otag_end
+
+Handler for L<XML::Parser>, object mode
+
+=cut
 
 sub otag_end {
 	my $xp=shift;
@@ -763,6 +883,12 @@ sub otag_end {
 =head1 BUGS
 
 Reading SofuML files need XML::Parser.
+
+The Old escaping mechanism didn't escape newlines in Values (at least not the ones in the middle)
+
+The new mechanism escapes them all.
+
+This Module can read both, but if you encounter NewLines in your Source file that don't belong there it might give you an additional newline you didn't want.
 
 =head1 See Also
 

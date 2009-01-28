@@ -1,8 +1,8 @@
 ###############################################################################
 #Undefined.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -54,7 +54,7 @@ use warnings;
 require Data::Sofu::Object;
 require Data::Sofu::List;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.29";
+our $VERSION="0.3";
 
 =head1 METHODS
 
@@ -86,7 +86,7 @@ sub isDefined {
 	return 0;
 }
 
-=head2 C<stringify(LEVEL, TREE)>
+=head2 stringify(LEVEL, TREE)
 
 Returns the string representation of this Object.
 
@@ -104,7 +104,7 @@ sub stringify {
 	return "UNDEF".$self->stringComment()."\n";
 }
 
-=head2 C<binarify(TREE, BDRIVER)>
+=head2 binarify (TREE, BDRIVER)
 
 Returns a binary representation of this Object. Don't call this (will be called from packBinary() and writeBinary())
 

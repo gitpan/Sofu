@@ -1,8 +1,8 @@
 ###############################################################################
 #Value.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -45,7 +45,7 @@ require Data::Sofu::List;
 require Data::Sofu::Undefined;
 require Data::Sofu;
 our @ISA = qw/Data::Sofu::Object/;
-our $VERSION="0.29";
+our $VERSION="0.3";
 
 =head1 METHODS
 
@@ -123,7 +123,7 @@ sub toString {
 	return $$self{Value};
 }
 
-=head2 C<toUTF16()>, C<toUTF8()>, toUTF32()
+=head2 toUTF16(), toUTF8(), toUTF32()
 
 Not working in Perl (cause there is no wchar, char, dchar stuff going on, if you need to convert strings use "Encode")
 
@@ -132,6 +132,7 @@ They just return the same as toString()
 =cut
 
 #TODO
+
 sub toUTF16 {
 	my $self=shift;
 	return $$self{Value};
@@ -220,7 +221,7 @@ sub isValue {
 #	return $self->stringify(@_); 
 #}
 
-=head2 C<stringify(LEVEL,TREE)>
+=head2 stringify(LEVEL,TREE)
 
 Returns a string representation of this Value.
 
@@ -236,7 +237,7 @@ sub stringify {
 	return Data::Sofu::Sofuescape($$self{Value}).$self->stringComment()."\n";
 }
 
-=head2 C<binarify(TREE,BINARY DRIVER)>
+=head2 binarify (TREE,BINARY DRIVER)
 
 Returns the binary version of this Value using the BINARY DRIVER. Don't call this one, use binaryPack instead.
 

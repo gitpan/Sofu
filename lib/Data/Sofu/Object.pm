@@ -1,8 +1,8 @@
 ###############################################################################
 #Object.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -50,7 +50,7 @@ require Data::Sofu::List;
 require Data::Sofu::Value;
 require Data::Sofu::Undefined;
 require Data::Sofu::Reference;
-our $VERSION="0.29";
+our $VERSION="0.3";
 my %seen;
 our %OBJ;
 my $indent = "\t";
@@ -118,7 +118,8 @@ sub new {
 	}
 	return $self;
 }
-=head2 indent(LEVEL)
+
+=head2 indent (LEVEL)
 
 Internal Function to create indentation during write()
 
@@ -206,7 +207,7 @@ sub asReference {
 	return;
 }
 
-=head2 C<stringify(LEVEL, TREE)>
+=head2 stringify(LEVEL, TREE)
 
 Returns a string representation of the Object, used during write(), should not be called alone
 
@@ -220,7 +221,7 @@ sub stringify {
 	confess "Error can't stringify an Object which is nothing but an Object";
 }
 
-=head2 C<binarify(TREE, BINARY DRIVER)>
+=head2 binarify(TREE, BINARY DRIVER)
 
 Returns a binary representation of the Object, used during writeBinary(), should never be called alone.
 
@@ -234,7 +235,7 @@ sub binarify {
 	confess "Error can't binarify an Object which is nothing but an Object";
 }
 
-=head2 C<storeComment(TREE, COMMENT)>
+=head2 storeComment(TREE, COMMENT)
 
 Recursivly stores a comment identified by TREE, is used to store a single comment of the hash returned by C<Data::Sofu::getSofucomments()>;
 
@@ -434,7 +435,7 @@ sub binaryPack {
 	$x->binaryPack(@_);
 }
 
-=head2 C<string(LEVEL,TREE)>
+=head2 string(LEVEL,TREE)
 
 A helper function to detect multiple references and convert them to Sofu References, calls stringify with its arguments
 
@@ -464,7 +465,7 @@ sub string { #Helper function to detect multiple References
 	return $self->stringify($level,$tree);
 }
 
-=head2 C<packComment(BINARY DRIVER)>
+=head2 packComment(BINARY DRIVER)
 
 Returns the Objects Comments packed by a BINARY DRIVER, used by binaryPack() and writeBinary()
 
@@ -480,7 +481,7 @@ sub packComment {
 }
 
 
-=head2 C<binary(TREE, BINARY DRIVER)>
+=head2 binary(TREE, BINARY DRIVER)
 
 A helper function to detect multiple references and convert them to Sofu References, calls stringify with its arguments. Should never be called alone, because the result will miss its header.
 
@@ -541,7 +542,8 @@ sub write {
 	print $fh $self->string(0,"");
 	#$fh goes out of scope here!
 }
-=head2 C<writeBinary(FILE,ENCODING,BYTEORDER,SOFUMARK)>
+
+=head2 writeBinary (FILE,ENCODING,BYTEORDER,SOFUMARK)
 
 Writes the binary representation of this Object to a file
 

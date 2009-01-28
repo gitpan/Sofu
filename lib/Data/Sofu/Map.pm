@@ -1,8 +1,8 @@
 ###############################################################################
 #Map.pm
-#Last Change: 2006-11-01
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.28
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -44,7 +44,7 @@ use warnings;
 require Data::Sofu::Object;
 require Data::Sofu;
 use Carp;
-our $VERSION="0.29";
+our $VERSION="0.3";
 our @ISA = qw/Data::Sofu::Object/;
 
 =head1 METHODS
@@ -407,7 +407,7 @@ sub opApplyDeluxe {
 	}
 }
 
-=head2 C<storeComment(TREE,COMMENT)>
+=head2 storeComment(TREE,COMMENT)
 
 Stores a comment in the Object if TREE is empty, otherwise it propagades the Comment to all its Values
 
@@ -449,7 +449,7 @@ sub orderedKeys {
 	return (@order,grep !$seen{$_},keys %{$self->{Map}});
 }
 
-=head2 C<stringify(LEVEL, TREE)>
+=head2 stringify(LEVEL, TREE)
 
 Returns a string representing this Map and all its children.
 
@@ -479,7 +479,7 @@ sub stringify {
 
 
 
-=head2 C<binaryPack(ENCODING, BYTEORDER, SOFUMARK)>
+=head2 binaryPack(ENCODING, BYTEORDER, SOFUMARK)
 
 Returns a String containing the binary representaion of this Map (according the Sofu Binary File Format)
 
@@ -505,7 +505,7 @@ sub binaryPack {
 	return $str;
 }
 
-=head2 C<binarify(TREE,BINARY DRIVER)>
+=head2 binarify(TREE,BINARY DRIVER)
 
 Returns the binary version of this Map and all its children using the BINARY DRIVER. Don't call this one, use binaryPack instead
 

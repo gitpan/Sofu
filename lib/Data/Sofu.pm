@@ -1,8 +1,8 @@
 ###############################################################################
 #Sofu.pm
-#Last Change: 2008-02-18
-#Copyright (c) 2006 Marc-Seabstian "Maluku" Lucksch
-#Version 0.29
+#Last Change: 2009-01-28
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -31,10 +31,11 @@ use Encode::Guess qw/UTF-16BE UTF-16LE UTF-32LE UTF-32BE latin1/;
 @EXPORT_OK= qw/readSofu writeSofu getSofucomments writeSofuBinary writeBinarySofu packBinarySofu packSofu unpackSofu getSofu packSofuBinary SofuloadFile getSofuComments writeSofuML packSofuML loadSofu/;
 %EXPORT_TAGS=("all"=>[@EXPORT_OK]);
 
-$VERSION="0.29";
+$VERSION= 0.3;
 my $sofu;
 my $bdriver; #Binary Interface (new File)
 my $mldriver; #SofuML Interface
+our $fullescape = 0;
 
 sub refe {
 	my $ref=shift;
@@ -773,11 +774,19 @@ sub escape {
 sub Sofuescape {
 	my $text=shift;
 	return "UNDEF" unless defined $text; #TODO: UNDEF = Undefined
-	$text=~s/\\/\\\\/g;
-	$text=~s/\n/\\n/g;
-	$text=~s/\r/\\r/g;
-	$text=~s/\"/\\\"/g;
-	return "\"$text\"";
+	if ($fullescape) {
+		#print "$text : ";
+		$text=~s/([[:^print:]\s\<\>\=\"\}\{\(\)])/ord($1) > 65535 ? sprintf("\\U%08x",ord($1)) : sprintf("\\u%04x",ord($1))/eg;
+		#print "$text \n";
+		return "\"$text\"";
+	}
+	else {
+		$text=~s/\\/\\\\/g;
+		$text=~s/\n/\\n/g;
+		$text=~s/\r/\\r/g;
+		$text=~s/\"/\\\"/g;
+		return "\"$text\"";
+	}
 }
 sub deescape {
 	my $self=shift;
@@ -823,6 +832,16 @@ sub deescape {
 					}
 					elsif (lc($char) eq "\"") {
 						$text.="\"";
+					}
+					elsif ($char eq "u") {
+						my $val=hex(substr($ttext,$count,4));
+						$text.=chr($val);
+						$count+=4;
+					}
+					elsif ($char eq "U") {
+						my $val=hex(substr($ttext,$count,8));
+						$count+=8;
+						$text.=chr($val);
 					}
 					else {
 						$self->warn("Deescape: Can't deescape: \\$char");
@@ -1318,6 +1337,9 @@ sub writeBinary {
 	#$fh goes out of scope here!
 }
 
+1;
+__END__
+
 =head1 NAME
 
 Data::Sofu - Perl extension for Sofu data
@@ -1330,6 +1352,7 @@ Data::Sofu - Perl extension for Sofu data
 	writeSofu("file.sofu",\%hash);
 	
 Or a litte more complex:
+
 	use Data::Sofu qw/packSofu unpackSofu/;
 	%hash=readSofu("file.sofu");
 	$comments=getSofucomments;
@@ -1378,7 +1401,7 @@ Some features are only avaiable when using OO.
 
 =head1 FUNCTIONS
 
-=head2 getSofucomments() 
+=head2 getSofucomments()
 
 Gets the comments of the last file read
 
@@ -1434,6 +1457,11 @@ a filename or
 
 a reference to a scalar (Data will be read from a scalar)
 
+Returns a C<Data::Sofu::Object>
+
+=head2 getSofu(HASHREF)
+
+Converts a hashref (like returned from readSofu) to Sofud compatible objects.
 
 Returns a C<Data::Sofu::Object>
 
@@ -1447,7 +1475,15 @@ This is different from a normal write(), because the lines are NOT indented and 
 
 COMMENTS is a reference to hash with comments like the one retuned by comments().
 
-=head2 C<unpackSofu(SOFU STRING)>
+=head2 packBinarySofu(DATA,[COMMENTS])
+
+Same as packSofu(DATA,[COMMENTS]) but the output is binary.
+
+=head2 packSofuBinary(DATA,[COMMENTS])
+
+Same as packSofu(DATA,[COMMENTS]) but the output is binary.
+
+=head2 unpackSofu(SOFU STRING)
 
 This function unpacks SOFU STRING and returns a scalar, which can be either a string or a reference to a hash or a reference to an array.
 
@@ -1460,7 +1496,7 @@ Note you can also read packed Data with readSofu(\<packed Data string>):
 	my $tree3 = readSofu(\$packed); 
 	# $tree2 has the same data as $tree3 (and $tree of course)
 
-=head2 C<writeSofuBinary(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])>
+=head2 writeSofuBinary(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])
 
 Writes the Data as a binary file.
 
@@ -1482,7 +1518,11 @@ To write other Datastructures use this:
 
 	writeSofuBinary("1.sofu",{Value=>$data});
 
-=head2 C<writeSofuML(FILE, DATA, [COMMENTS,[HEADER]])>
+=head2 writeBinarySofu(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])
+
+Same as writeSofuBinary()
+
+=head2 writeSofuML(FILE, DATA, [COMMENTS,[HEADER]])
 
 Writes the Data as an XML file (for postprocessing with XSLT or CSS)
 
@@ -1501,6 +1541,23 @@ COMMENTS is a reference to hash with comments like the one retuned by comments, 
 HEADER can be an costum file header, (defaults to C<< qq(<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE Sofu SYSTEM "http://sofu.sf.net/Sofu.dtd">\n) >> );
 
 Default output (when given a filename) is UTF-8.
+
+=head2 packSofuML(DATA, [COMMENTS, [HEADER]])
+
+Returns DATA as an XML file (for postprocessing with XSLT or CSS) with no Indentation
+
+DATA has to be a reference to a Hash or Data::Sofu::Object
+
+COMMENTS is a reference to hash with comments like the one retuned by comments, only used when DATA is not a Data::Sofu::Object
+
+HEADER can be an costum file header, (defaults to C<< qq(<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE Sofu SYSTEM "http://sofu.sf.net/Sofu.dtd">\n) >> );
+
+Those are not (quite) the same:
+
+	use Data::Sofu qw/packSofuML writeSofuML/;
+	$string = packSofuML($tree,$comments) #Will not indent.
+	writeSofuML(\$string,$tree,$comments)# Will indent.
+
 
 =head1 CLASS-METHODS
 
@@ -1534,7 +1591,7 @@ Creates a new Data::Sofu object.
 
 Sets the indent to INDENT. Default indent is "\t".
 
-=head2 C<setWarnings( 1/0 )>
+=head2 setWarnings( 1/0 )
 
 Enables/Disables sofu syntax warnings.
 
@@ -1580,7 +1637,7 @@ a filename or
 a reference to a scalar (Data will be read from a scalar)
 
 
-=head2 C<pack(DATA,[COMMENTS])>
+=head2 pack(DATA,[COMMENTS])
 
 Packs DATA to a sofu string.
 
@@ -1590,7 +1647,11 @@ COMMENTS is a reference to hash with comments like the one retuned by comments
 
 This is different from a normal write(), because the lines are NOT indented and there will be placed brackets around the topmost element. (Which is not Sofu 0.2 conform, please use write(\$scalar,$data) instead).
 
-=head2 C<unpack(SOFU STRING)>
+=head2 packBinary(DATA,[COMMENTS])
+
+Same as pack(DATA,[COMMENTS]), but output is binary.
+
+=head2 unpack(SOFU STRING)
 
 This function unpacks SOFU STRING and returns a scalar, which can be either a string or a reference to a hash or a reference to an array.
 
@@ -1608,7 +1669,7 @@ a reference to a scalar (Data will be read from a scalar)
 
 Returns a C<Data::Sofu::Object>
 
-=head2 C<toObjects(DATA, [COMMENTS])>
+=head2 toObjects(DATA, [COMMENTS])
 
 Builds a Sofu Object Tree from a perl data structure
 
@@ -1618,7 +1679,7 @@ COMMENTS is a reference to hash with comments like the one retuned by comments
 
 Returns a C<Data::Sofu::Object>
 
-=head2 C<writeBinary(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])>
+=head2 writeBinary(FILE, DATA, [Comments, [Encoding, [ByteOrder, [SofuMark]]]])
 
 Writes the Data as a binary file.
 
@@ -1640,7 +1701,7 @@ To write other Datastructures use this:
 
 	$sofu->writeBinary("1.sofu",{Value=>$data});
 
-=head2 C<writeML(FILE, DATA, [COMMENTS,[HEADER]])>
+=head2 writeML(FILE, DATA, [COMMENTS,[HEADER]])
 
 Writes the Data as an XML file (for postprocessing with XSLT or CSS)
 
@@ -1675,9 +1736,127 @@ Those are not (quite) the same:
 	$string = $sofu->packML($tree,$comments) #Will not indent.
 	$sofu->writeML(\$string,$tree,$comments)# Will indent.
 
+=head1 INTERNAL METHODS
+
+=head2 Sofuescape
+
+Escapes a value for Sofu
+
+=head2 Sofukeyescape
+
+Escapes a sofu key
+
+=head2 Sofukeyunescape 
+
+Inversion of Sofukeyescape().
+
+=head2 SofuloadFile
+
+Same as loadSofu().
+
+=head2 allWarn
+
+Turns on all warnings
+
+=head2 comment
+
+like comments()
+
+=head2 commentary
+
+This is used to print the comments into the file
+
+=head2 escape
+
+Method that calls Sofuescape()
+
+=head2 deescape
+
+When parsing a file this one tries to filter out references and deescape sofu strings.
+
+=head2 get
+
+Gets the next char from the input or the buffer. Also takes care of comments.
+
+=head2 getSingleValue
+
+Tries to parse a single value or list
+
+=head2 getSofuComments
+
+Same as getSofucomments().
+
+=head2 iDontKnowWhatIAmDoing()
+
+Turns on warnings.
+
+=head2 iKnowWhatIAmDoing()
+
+Turns on warnings.
+
+=head2 warn()
+
+Turns on warnings.
+
+=head2 noWarn()
+
+Turns off warnings.
+
+=head2 keyescape()
+
+Same as Sofukeyescape only as a method.
+
+=head2 keyunescape()
+
+Same as Sofukeyunescape only as a method.
+
+=head2 noComments()
+
+Discards all commentary from the file while reading.
+
+=head2 object([0/1]).
+
+Enables/disables the object parser (done by readSofu and loadSofu)
+
+=head2 parsList()
+
+Reads a Sofu list from the input buffer.
+
+=head2 parsMap()
+
+Reads a Sofu map from the input buffer.
+
+=head2 parsValue()
+
+Reads a Sofu value / Sofu 0.1 list from the input buffer.
+
+=head2 postprocess()
+
+Corrects references and puts comments into the objects (if load/loadSofu is used)
+
+=head2 refe()
+
+Tests if the input is a reference.
+
+=head2 storeComment()
+
+Stores a comment into the database while reading a sofu file.
+
+=head2 wasbinary()
+
+True when the read file was binary.
+
+=head2 writeList() 
+
+Used to pack/write a sofu list.
+
+=head2 writeMap() 
+
+Used to pack/write a sofu map.
+
 =head1 CHANGES
 
-Kyes are now automatically escaped according to the new sofu specification.
+Keys are now automatically escaped according to the new sofu specification.
 
 Double used references will now be converted to Sofu-References.
 

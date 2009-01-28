@@ -1,8 +1,8 @@
 ###############################################################################
 #Binary.pm
-#Last Change: 2008-02-12
-#Copyright (c) 2008 Marc-Seabstian "Maluku" Lucksch
-#Version 0.29
+#Last Change: 2009-28-01
+#Copyright (c) 2009 Marc-Seabstian "Maluku" Lucksch
+#Version 0.3
 ####################
 #This file is part of the sofu.pm project, a parser library for an all-purpose
 #ASCII file format. More information can be found on the project web site
@@ -53,7 +53,7 @@ package Data::Sofu::Binary;
 use strict;
 use warnings;
 
-our $VERSION="0.29";
+our $VERSION="0.3";
 #We are really going to need these modules:
 use Encode;
 use Carp qw/confess/;
@@ -311,7 +311,7 @@ sub load { #Object parser
 	return $m->unpackObject($bom);
 }
 
-=head2 C<write(FILE,TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK,[...]]]]])>
+=head2 write(FILE,TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK,[...]]]]])
 
 Writes TREE to FILE.
 
@@ -332,7 +332,7 @@ sub write {
 
 }
 
-=head2 C<pack(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK,[...]]]]])>
+=head2 pack(TREE,[COMMENTS,[ENCODING,[BYTEORDER,[SOFUMARK,[...]]]]])
 
 This method is implemented only in the driver, but it is important to discuss the arguments here.
 

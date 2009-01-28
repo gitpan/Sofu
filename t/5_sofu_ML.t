@@ -127,12 +127,9 @@ is($string,q(<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 	<Element key="Testing">
 		<List id="9">
 			<Value id="10">&#x20;&#x20;Text with leading whitepace, and with 2 trailing spaces&#x20;&#x20;</Value>
-			<Value id="11">&#xA;2.Line
-				3.Line&#xA;</Value>
+			<Value id="11">&#xA;2.Line&#xA;3.Line&#xA;</Value>
 			<Value id="12">&#xD;</Value>
-			<Value id="13">Space&#x20;
-				&#x20;Newline&#x20;
-				&#x20;Space</Value>
+			<Value id="13">Space&#x20;&#xA;&#x20;Newline&#x20;&#xA;&#x20;Space</Value>
 			<Value id="14">4Spaces&#x20;&#x20;&#x20;&#x20;end</Value>
 		</List>
 	</Element>
@@ -196,12 +193,9 @@ is(packSofuML($tree,$comments),q(<?xml version="1.0" encoding="UTF-8" standalone
 <Element key="Testing">
 <List id="9">
 <Value id="10">&#x20;&#x20;Text with leading whitepace, and with 2 trailing spaces&#x20;&#x20;</Value>
-<Value id="11">&#xA;2.Line
-3.Line&#xA;</Value>
+<Value id="11">&#xA;2.Line&#xA;3.Line&#xA;</Value>
 <Value id="12">&#xD;</Value>
-<Value id="13">Space&#x20;
-&#x20;Newline&#x20;
-&#x20;Space</Value>
+<Value id="13">Space&#x20;&#xA;&#x20;Newline&#x20;&#xA;&#x20;Space</Value>
 <Value id="14">4Spaces&#x20;&#x20;&#x20;&#x20;end</Value>
 </List>
 </Element>
@@ -304,12 +298,9 @@ is($string,q(<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 	<Element key="Testing">
 		<List id="29">
 			<Value id="30">&#x20;&#x20;Text with leading whitepace, and with 2 trailing spaces&#x20;&#x20;</Value>
-			<Value id="31">&#xA;2.Line
-				3.Line&#xA;</Value>
+			<Value id="31">&#xA;2.Line&#xA;3.Line&#xA;</Value>
 			<Value id="32">&#xD;</Value>
-			<Value id="33">Space&#x20;
-				&#x20;Newline&#x20;
-				&#x20;Space</Value>
+			<Value id="33">Space&#x20;&#xA;&#x20;Newline&#x20;&#xA;&#x20;Space</Value>
 			<Value id="34">4Spaces&#x20;&#x20;&#x20;&#x20;end</Value>
 		</List>
 	</Element>
@@ -373,12 +364,9 @@ is(packSofuML($objects),q(<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <Element key="Testing">
 <List id="29">
 <Value id="30">&#x20;&#x20;Text with leading whitepace, and with 2 trailing spaces&#x20;&#x20;</Value>
-<Value id="31">&#xA;2.Line
-3.Line&#xA;</Value>
+<Value id="31">&#xA;2.Line&#xA;3.Line&#xA;</Value>
 <Value id="32">&#xD;</Value>
-<Value id="33">Space&#x20;
-&#x20;Newline&#x20;
-&#x20;Space</Value>
+<Value id="33">Space&#x20;&#xA;&#x20;Newline&#x20;&#xA;&#x20;Space</Value>
 <Value id="34">4Spaces&#x20;&#x20;&#x20;&#x20;end</Value>
 </List>
 </Element>
@@ -414,5 +402,5 @@ SKIP: {
 	is_deeply(scalar loadSofu("test.xml"),$objects,"Parsed Sofu-Objects from file");
 
 };
-#unlink "test.sofu";
-#unlink "test.xml";
+unlink "test.sofu";
+unlink "test.xml";
